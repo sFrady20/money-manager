@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { mmPlaidTokens } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { DateTime } from "luxon";
 
 const configuration = new Configuration({
@@ -46,11 +46,17 @@ export async function GET(request: Request) {
       .endOf("month")
       .toISODate();
 
-    // Get all access tokens for the user
+    // Get all access tokens for the user that match the current environment
+    const currentEnvironment = process.env.NEXT_PUBLIC_PLAID_ENV || "sandbox";
     const userTokens = await db
       .select()
       .from(mmPlaidTokens)
-      .where(eq(mmPlaidTokens.userId, session.user.id!));
+      .where(
+        and(
+          eq(mmPlaidTokens.userId, session.user.id!),
+          eq(mmPlaidTokens.environment, currentEnvironment)
+        )
+      );
 
     if (!userTokens.length) {
       return NextResponse.json({ transactions: [] });

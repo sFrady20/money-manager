@@ -39,12 +39,13 @@ export async function POST(request: Request) {
 
     const institutionId = itemResponse.data.item.institution_id;
 
-    // Store in database
+    // Store in database with current environment
     await db.insert(mmPlaidTokens).values({
       userId: session.user.id!,
       accessToken,
       itemId,
       institutionId,
+      environment: process.env.NEXT_PUBLIC_PLAID_ENV || "sandbox",
     });
 
     return NextResponse.json({ success: true });

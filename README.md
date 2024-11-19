@@ -10,6 +10,7 @@ A personal finance application built with Next.js that integrates with Plaid to 
 - 💰 Income and expense tracking
 - 📈 Daily financial activity charts
 - 🎨 Modern UI with shadcn/ui components
+- 🔄 Environment-aware Plaid integration (sandbox/production)
 
 ## Tech Stack
 
@@ -37,7 +38,7 @@ Create a `.env.local` file in the root directory with the following variables:
 
 ```bash
 # Plaid
-NEXT_PUBLIC_PLAID_ENV=sandbox
+NEXT_PUBLIC_PLAID_ENV=sandbox # or 'development' or 'production'
 PLAID_CLIENT_ID=your_plaid_client_id
 PLAID_SECRET=your_plaid_secret
 NEXT_PUBLIC_PLAID_REDIRECT_URI=http://localhost:3000/oauth-redirect
@@ -111,6 +112,8 @@ src/
 - Secure bank account linking through Plaid
 - Transaction synchronization
 - Multiple account support
+- Environment-aware token management (sandbox/production)
+- Automatic environment detection and filtering
 
 ### Transaction Management
 
@@ -124,6 +127,15 @@ src/
 - Daily income/expense bar charts
 - Monthly statistics
 - Transaction categorization
+
+### Environment Management
+
+The application automatically manages Plaid tokens based on the current environment (sandbox/production):
+
+- Tokens are stored with their associated environment
+- Only tokens from the current environment are used for fetching transactions
+- Seamless transition between sandbox and production environments
+- Prevents mixing of test and production data
 
 ## Contributing
 
