@@ -244,7 +244,7 @@ export const mmAccountTokens = pgTable(
     id: uuid().defaultRandom().primaryKey().notNull(),
     userId: text("user_id").notNull(),
     accessToken: text("access_token").notNull(),
-    itemId: text("item_id").notNull(),
+    itemId: text("item_id"),
     institutionId: text("institution_id"),
     service: text("service").notNull().default("teller"),
     environment: text("environment").notNull().default("sandbox"),

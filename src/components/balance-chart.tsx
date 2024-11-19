@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import { DateTime } from "luxon";
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -16,6 +16,7 @@ import {
 interface Transaction {
   date: string;
   amount: number;
+  running_balance?: number;
   account_type: string;
 }
 
@@ -25,32 +26,41 @@ interface BalanceChartProps {
 
 export function BalanceChart({ transactions }: BalanceChartProps) {
   const chartData = useMemo(() => {
-    // Group transactions by date
-    const dailyTransactions = transactions.reduce<
-      Record<string, { income: number; expenses: number }>
-    >((acc, transaction) => {
-      const date = DateTime.fromISO(transaction.date).toFormat("yyyy-MM-dd");
-      if (!acc[date]) {
-        acc[date] = { income: 0, expenses: 0 };
-      }
+    // Sort transactions by date
+    const sortedTransactions = [...transactions].sort(
+      (a, b) =>
+        DateTime.fromISO(a.date).toMillis() -
+        DateTime.fromISO(b.date).toMillis()
+    );
 
-      const amount = Math.abs(transaction.amount);
-      // Positive amounts are expenses, negative are income
-      if (transaction.amount > 0) {
-        acc[date].expenses += amount;
-      } else {
-        acc[date].income += amount;
-      }
+    // If we have running balance from Teller, use it directly
+    if (sortedTransactions[0]?.running_balance !== undefined) {
+      return sortedTransactions.map((transaction) => ({
+        date: transaction.date,
+        balance: transaction.running_balance,
+      }));
+    }
 
-      return acc;
-    }, {});
+    // Otherwise calculate daily balances from Plaid data
+    const dailyBalances = sortedTransactions.reduce<Record<string, number>>(
+      (acc, transaction) => {
+        const date = DateTime.fromISO(transaction.date).toFormat("yyyy-MM-dd");
+        if (!acc[date]) {
+          // Get the previous day's balance or 0 if it's the first day
+          const prevDate = Object.keys(acc).sort().pop();
+          acc[date] = prevDate ? acc[prevDate] : 0;
+        }
+        // Subtract amount because Plaid uses positive for expenses
+        acc[date] -= transaction.amount;
+        return acc;
+      },
+      {}
+    );
 
-    // Convert to array and sort by date
-    return Object.entries(dailyTransactions)
-      .map(([date, amounts]) => ({
+    return Object.entries(dailyBalances)
+      .map(([date, balance]) => ({
         date,
-        income: amounts.income,
-        expenses: amounts.expenses,
+        balance,
       }))
       .sort(
         (a, b) =>
@@ -71,7 +81,7 @@ export function BalanceChart({ transactions }: BalanceChartProps) {
   return (
     <div className="w-full h-[300px] mt-4">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart
+        <LineChart
           data={chartData}
           margin={{
             top: 10,
@@ -93,9 +103,14 @@ export function BalanceChart({ transactions }: BalanceChartProps) {
             }
           />
           <Legend />
-          <Bar dataKey="expenses" name="Expenses" fill="#f87171" />
-          <Bar dataKey="income" name="Income" fill="#4ade80" />
-        </BarChart>
+          <Line
+            type="monotone"
+            dataKey="balance"
+            name="Balance"
+            stroke="#3b82f6"
+            dot={false}
+          />
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );

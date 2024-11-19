@@ -1,26 +1,37 @@
 "use client";
 
-import { PlaidLinkButton } from "@/components/plaid-link";
-import { TransactionsList } from "@/components/transactions-list";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { TellerConnect } from "./teller-connect";
+import { TransactionsList } from "./transactions-list";
+import { Button } from "./ui/button";
 
 interface DashboardProps {
   userEmail: string;
 }
 
 export function Dashboard({ userEmail }: DashboardProps) {
-  const handlePlaidSuccess = async (publicToken: string) => {
-    const response = await fetch("/api/plaid/exchange-token", {
+  const router = useRouter();
+
+  const handleTellerSuccess = async (
+    accessToken: string,
+    enrollmentId?: string
+  ) => {
+    const response = await fetch("/api/teller/exchange-token", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ public_token: publicToken }),
+      body: JSON.stringify({
+        access_token: accessToken,
+        enrollment_id: enrollmentId,
+      }),
     });
 
     if (!response.ok) {
       console.error("Failed to exchange token");
     }
+
+    router.refresh();
   };
 
   return (
@@ -36,10 +47,7 @@ export function Dashboard({ userEmail }: DashboardProps) {
       </div>
 
       <div className="mb-8">
-        <PlaidLinkButton
-          onSuccess={handlePlaidSuccess}
-          onExit={() => console.log("Link exited")}
-        />
+        <TellerConnect onSuccess={handleTellerSuccess} />
       </div>
 
       <TransactionsList />

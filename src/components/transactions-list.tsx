@@ -2,16 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { DateTime } from "luxon";
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui/button";
 import { BalanceChart } from "./balance-chart";
 
 interface Transaction {
   transaction_id: string;
   date: string;
-  name: string;
+  description: string;
   amount: number;
-  category: string[];
-  merchant_name: string | null;
+  running_balance: number;
   account_type: string;
   account_name: string;
   institution_name: string;
@@ -40,7 +39,7 @@ export function TransactionsList() {
       setIsLoading(true);
       try {
         const response = await fetch(
-          `/api/plaid/transactions?month=${selectedMonth}`
+          `/api/teller/transactions?month=${selectedMonth}`
         );
         const data = await response.json();
         setTransactions(data.transactions);
@@ -148,20 +147,18 @@ export function TransactionsList() {
                   className="flex items-center justify-between p-4 rounded-lg border"
                 >
                   <div>
-                    <div className="font-medium">
-                      {transaction.merchant_name || transaction.name}
-                    </div>
+                    <div className="font-medium">{transaction.description}</div>
                     <div className="text-sm text-muted-foreground">
                       {DateTime.fromISO(transaction.date).toFormat(
                         "MMM dd, yyyy"
                       )}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {transaction.category.join(" › ")}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
                       {transaction.institution_name} •{" "}
                       {transaction.account_name}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Balance: {formatCurrency(transaction.running_balance)}
                     </div>
                   </div>
                   <div className={isIncome ? "text-green-600" : ""}>
