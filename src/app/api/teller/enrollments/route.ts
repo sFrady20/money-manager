@@ -23,7 +23,11 @@ export async function GET() {
     const tellerTokens = await db.query.mmAccountTokens.findMany({
       where: and(
         eq(mmAccountTokens.userId, session.user.id!),
-        eq(mmAccountTokens.service, "teller")
+        eq(mmAccountTokens.service, "teller"),
+        eq(
+          mmAccountTokens.environment,
+          process.env.NEXT_PUBLIC_ENV || "sandbox"
+        )
       ),
     });
 

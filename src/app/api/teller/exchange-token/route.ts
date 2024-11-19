@@ -18,8 +18,7 @@ export async function POST(request: Request) {
       accessToken: access_token,
       itemId: enrollment_id,
       service: "teller",
-      environment:
-        process.env.NODE_ENV === "development" ? "sandbox" : "production",
+      environment: process.env.NEXT_PUBLIC_ENV || "sandbox",
     });
 
     return NextResponse.json({ success: true });

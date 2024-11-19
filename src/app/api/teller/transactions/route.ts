@@ -40,7 +40,6 @@ export async function GET(request: Request) {
     const monthEnd = monthStart.endOf("month");
 
     // Get all Teller access tokens for the user
-    const currentEnvironment = process.env.NEXT_PUBLIC_ENV || "sandbox";
     const userTokens = await db
       .select()
       .from(mmAccountTokens)
@@ -48,7 +47,10 @@ export async function GET(request: Request) {
         and(
           eq(mmAccountTokens.userId, session.user.id!),
           eq(mmAccountTokens.service, "teller"),
-          eq(mmAccountTokens.environment, currentEnvironment)
+          eq(
+            mmAccountTokens.environment,
+            process.env.NEXT_PUBLIC_ENV || "sandbox"
+          )
         )
       );
 
