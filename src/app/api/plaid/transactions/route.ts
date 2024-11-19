@@ -1,4 +1,4 @@
-import { Configuration, PlaidApi, PlaidEnvironments } from "plaid";
+import { Configuration, CountryCode, PlaidApi, PlaidEnvironments } from "plaid";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -62,20 +62,55 @@ export async function GET(request: Request) {
       return NextResponse.json({ transactions: [] });
     }
 
-    // Fetch transactions for each linked account
-    const allTransactions = await Promise.all(
+    // Fetch transactions and account info for each linked account
+    const allData = await Promise.all(
       userTokens.map(async (token) => {
-        const response = await plaidClient.transactionsGet({
-          access_token: token.accessToken,
-          start_date: startDate!,
-          end_date: endDate!,
-        });
-        return response.data.transactions;
+        const [transactionsResponse, accountsResponse, institutionResponse] =
+          await Promise.all([
+            plaidClient.transactionsGet({
+              access_token: token.accessToken,
+              start_date: startDate!,
+              end_date: endDate!,
+            }),
+            plaidClient.accountsGet({
+              access_token: token.accessToken,
+            }),
+            plaidClient.institutionsGetById({
+              institution_id: token.institutionId!,
+              country_codes: [CountryCode.Us],
+            }),
+          ]);
+
+        // Create maps for account and institution info
+        const accountInfo = new Map(
+          accountsResponse.data.accounts.map((account) => [
+            account.account_id,
+            {
+              name: account.name,
+              type: account.type,
+              subtype: account.subtype,
+            },
+          ])
+        );
+
+        const institutionName = institutionResponse.data.institution.name;
+
+        // Add account and institution info to each transaction
+        const transactionsWithInfo = transactionsResponse.data.transactions.map(
+          (transaction) => ({
+            ...transaction,
+            account_type: accountInfo.get(transaction.account_id)?.type,
+            account_name: accountInfo.get(transaction.account_id)?.name,
+            institution_name: institutionName,
+          })
+        );
+
+        return transactionsWithInfo;
       })
     );
 
     // Combine and sort transactions by date
-    const transactions = allTransactions
+    const transactions = allData
       .flat()
       .sort(
         (a, b) =>

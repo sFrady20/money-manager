@@ -16,6 +16,7 @@ import {
 interface Transaction {
   date: string;
   amount: number;
+  account_type: string;
 }
 
 interface BalanceChartProps {
@@ -32,11 +33,15 @@ export function BalanceChart({ transactions }: BalanceChartProps) {
       if (!acc[date]) {
         acc[date] = { income: 0, expenses: 0 };
       }
-      if (transaction.amount < 0) {
-        acc[date].income += Math.abs(transaction.amount);
+
+      const amount = Math.abs(transaction.amount);
+      // Positive amounts are expenses, negative are income
+      if (transaction.amount > 0) {
+        acc[date].expenses += amount;
       } else {
-        acc[date].expenses += transaction.amount;
+        acc[date].income += amount;
       }
+
       return acc;
     }, {});
 
@@ -88,8 +93,8 @@ export function BalanceChart({ transactions }: BalanceChartProps) {
             }
           />
           <Legend />
-          <Bar dataKey="income" name="Income" fill="#4ade80" />
           <Bar dataKey="expenses" name="Expenses" fill="#f87171" />
+          <Bar dataKey="income" name="Income" fill="#4ade80" />
         </BarChart>
       </ResponsiveContainer>
     </div>

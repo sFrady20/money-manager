@@ -12,6 +12,9 @@ interface Transaction {
   amount: number;
   category: string[];
   merchant_name: string | null;
+  account_type: string;
+  account_name: string;
+  institution_name: string;
 }
 
 interface MonthlyStats {
@@ -40,33 +43,26 @@ export function TransactionsList() {
           `/api/plaid/transactions?month=${selectedMonth}`
         );
         const data = await response.json();
-        // Normalize transaction amounts: negative for expenses, positive for income
-        const normalizedTransactions = data.transactions.map(
-          (t: Transaction) => ({
-            ...t,
-            amount: -t.amount, // Plaid returns positive for expenses, negative for income
-          })
-        );
-        setTransactions(normalizedTransactions);
+        setTransactions(data.transactions);
 
         // Calculate monthly stats
-        const stats = normalizedTransactions.reduce(
+        const stats = data.transactions.reduce(
           (acc: MonthlyStats, t: Transaction) => {
-            if (t.amount > 0) {
-              acc.income += t.amount;
+            const amount = Math.abs(t.amount);
+            if (t.amount < 0) {
+              // Negative amounts are income
+              acc.income += amount;
             } else {
-              acc.expenses += Math.abs(t.amount);
+              // Positive amounts are expenses
+              acc.expenses += amount;
             }
             return acc;
           },
-          { income: 0, expenses: 0 }
+          { income: 0, expenses: 0, net: 0 }
         );
 
-        setMonthlyStats({
-          income: stats.income,
-          expenses: stats.expenses,
-          net: stats.income - stats.expenses,
-        });
+        stats.net = stats.income - stats.expenses;
+        setMonthlyStats(stats);
       } catch (error) {
         console.error("Failed to fetch transactions:", error);
       } finally {
@@ -141,29 +137,39 @@ export function TransactionsList() {
           <BalanceChart transactions={transactions} />
 
           <div className="space-y-2">
-            {transactions.map((transaction) => (
-              <div
-                key={transaction.transaction_id}
-                className="flex items-center justify-between p-4 rounded-lg border"
-              >
-                <div>
-                  <div className="font-medium">
-                    {transaction.merchant_name || transaction.name}
+            {transactions.map((transaction) => {
+              const amount = Math.abs(transaction.amount);
+              // Negative amounts are income
+              const isIncome = transaction.amount < 0;
+
+              return (
+                <div
+                  key={transaction.transaction_id}
+                  className="flex items-center justify-between p-4 rounded-lg border"
+                >
+                  <div>
+                    <div className="font-medium">
+                      {transaction.merchant_name || transaction.name}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {DateTime.fromISO(transaction.date).toFormat(
+                        "MMM dd, yyyy"
+                      )}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {transaction.category.join(" › ")}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {transaction.institution_name} •{" "}
+                      {transaction.account_name}
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {DateTime.fromISO(transaction.date).toFormat(
-                      "MMM dd, yyyy"
-                    )}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {transaction.category.join(" › ")}
+                  <div className={isIncome ? "text-green-600" : ""}>
+                    {formatCurrency(amount)}
                   </div>
                 </div>
-                <div className={transaction.amount > 0 ? "text-green-600" : ""}>
-                  ${Math.abs(transaction.amount).toFixed(2)}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
