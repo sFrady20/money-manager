@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { mmUsers, mmAccounts, mmPlaidTokens, mmSessions } from "./schema";
+import { mmUsers, mmAccounts, mmAccountTokens, mmSessions } from "./schema";
 
 export const mmAccountsRelations = relations(mmAccounts, ({ one }) => ({
   mmUser: one(mmUsers, {
@@ -10,16 +10,19 @@ export const mmAccountsRelations = relations(mmAccounts, ({ one }) => ({
 
 export const mmUsersRelations = relations(mmUsers, ({ many }) => ({
   mmAccounts: many(mmAccounts),
-  mmPlaidTokens: many(mmPlaidTokens),
+  mmAccountTokens: many(mmAccountTokens),
   mmSessions: many(mmSessions),
 }));
 
-export const mmPlaidTokensRelations = relations(mmPlaidTokens, ({ one }) => ({
-  mmUser: one(mmUsers, {
-    fields: [mmPlaidTokens.userId],
-    references: [mmUsers.id],
-  }),
-}));
+export const mmAccountTokensRelations = relations(
+  mmAccountTokens,
+  ({ one }) => ({
+    mmUser: one(mmUsers, {
+      fields: [mmAccountTokens.userId],
+      references: [mmUsers.id],
+    }),
+  })
+);
 
 export const mmSessionsRelations = relations(mmSessions, ({ one }) => ({
   mmUser: one(mmUsers, {

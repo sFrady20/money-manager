@@ -238,24 +238,25 @@ export const mmAccounts = pgTable(
   })
 );
 
-export const mmPlaidTokens = pgTable(
-  "mm_plaid_tokens",
+export const mmAccountTokens = pgTable(
+  "mm_account_tokens",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
     userId: text("user_id").notNull(),
     accessToken: text("access_token").notNull(),
     itemId: text("item_id").notNull(),
     institutionId: text("institution_id"),
+    service: text("service").notNull().default("teller"),
     environment: text("environment").notNull().default("sandbox"),
     createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
   },
   (table) => {
     return {
-      mmPlaidTokensUserIdMmUsersIdFk: foreignKey({
+      mmAccountTokensUserIdMmUsersIdFk: foreignKey({
         columns: [table.userId],
         foreignColumns: [mmUsers.id],
-        name: "mm_plaid_tokens_user_id_mm_users_id_fk",
+        name: "mm_account_tokens_user_id_mm_users_id_fk",
       }).onDelete("cascade"),
     };
   }

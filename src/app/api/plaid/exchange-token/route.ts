@@ -2,13 +2,13 @@ import { Configuration, PlaidApi, PlaidEnvironments } from "plaid";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { mmPlaidTokens } from "@/lib/db/schema";
+import { mmAccountTokens } from "@/lib/db/schema";
 
 const configuration = new Configuration({
-  basePath: PlaidEnvironments[process.env.NEXT_PUBLIC_PLAID_ENV || "sandbox"],
+  basePath: PlaidEnvironments[process.env.NEXT_PUBLIC_ENV || "sandbox"],
   baseOptions: {
     headers: {
-      "PLAID-CLIENT-ID": process.env.PLAID_CLIENT_ID,
+      "PLAID-CLIENT-ID": process.env.PLAID_ID,
       "PLAID-SECRET": process.env.PLAID_SECRET,
     },
   },
@@ -40,12 +40,12 @@ export async function POST(request: Request) {
     const institutionId = itemResponse.data.item.institution_id;
 
     // Store in database with current environment
-    await db.insert(mmPlaidTokens).values({
+    await db.insert(mmAccountTokens).values({
       userId: session.user.id!,
       accessToken,
       itemId,
       institutionId,
-      environment: process.env.NEXT_PUBLIC_PLAID_ENV || "sandbox",
+      environment: process.env.NEXT_PUBLIC_ENV || "sandbox",
     });
 
     return NextResponse.json({ success: true });
