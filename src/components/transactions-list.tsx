@@ -11,6 +11,7 @@ interface Transaction {
   description: string;
   amount: number;
   running_balance: number;
+  account_id: string;
   account_type: string;
   account_name: string;
   institution_name: string;
