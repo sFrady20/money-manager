@@ -27,9 +27,10 @@ export function TellerConnect({ onSuccess }: TellerConnectProps) {
 
       {showConnect && (
         <TellerConnectModal
+          style={{ display: "block" }}
           applicationId={process.env.NEXT_PUBLIC_TELLER_ID!}
           environment={
-            process.env.NODE_ENV === "development" ? "sandbox" : "production"
+            process.env.NODE_ENV === "development" ? "sandbox" : "development"
           }
           onSuccess={handleSuccess}
           onExit={() => setShowConnect(false)}

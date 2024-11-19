@@ -33,15 +33,11 @@ export async function GET(request: Request) {
       );
     }
 
-    // Create DateTime object for the first day of the month
-    const startDate = DateTime.fromFormat(monthParam, "yyyy-MM")
-      .startOf("month")
-      .toISODate();
-
-    // Get the last day of the month
-    const endDate = DateTime.fromFormat(monthParam, "yyyy-MM")
-      .endOf("month")
-      .toISODate();
+    // Create DateTime object for the month range
+    const monthStart = DateTime.fromFormat(monthParam, "yyyy-MM").startOf(
+      "month"
+    );
+    const monthEnd = monthStart.endOf("month");
 
     // Get all Teller access tokens for the user
     const currentEnvironment = process.env.NEXT_PUBLIC_ENV || "sandbox";
@@ -75,11 +71,15 @@ export async function GET(request: Request) {
           throw new Error(accounts.error.message);
         }
 
-        // Then get transactions with running balances for each account
+        // Filter out credit accounts and get transactions for remaining accounts
+        const depositoryAccounts = accounts.filter(
+          (account: any) => account.type.toLowerCase() === "depository"
+        );
+
         const accountTransactions = await Promise.all(
-          accounts.map(async (account: any) => {
+          depositoryAccounts.map(async (account: any) => {
             const transactionsResponse = await tellerApi.get(
-              `/accounts/${account.id}/transactions?from=${startDate}&to=${endDate}`,
+              `/accounts/${account.id}/transactions`,
               {
                 auth: {
                   username: token.accessToken,
@@ -95,7 +95,7 @@ export async function GET(request: Request) {
               date: transaction.date,
               amount: -transaction.amount, // Negate to match Plaid's format (positive = expense)
               description: transaction.description,
-              running_balance: transaction.running_balance,
+              running_balance: Number(transaction.running_balance), // Ensure it's a number
               account_id: account.id,
               account_name: account.name,
               account_type: account.type,
@@ -117,19 +117,27 @@ export async function GET(request: Request) {
       );
     }
 
-    // Combine and sort transactions by date
-    const transactions = allData
+    // Combine all transactions
+    const allTransactions = allData
       .filter((x) => x.status === "fulfilled")
       .map((x) => x.value)
-      .flat()
-      .sort(
-        (a, b) =>
-          DateTime.fromISO(b.date).toMillis() -
-          DateTime.fromISO(a.date).toMillis()
-      );
+      .flat();
+
+    // Filter transactions for the selected month
+    const monthTransactions = allTransactions.filter((transaction) => {
+      const txDate = DateTime.fromISO(transaction.date);
+      return txDate >= monthStart && txDate <= monthEnd;
+    });
+
+    // Sort transactions by date (newest first)
+    const sortedTransactions = monthTransactions.sort(
+      (a, b) =>
+        DateTime.fromISO(b.date).toMillis() -
+        DateTime.fromISO(a.date).toMillis()
+    );
 
     return NextResponse.json({
-      transactions,
+      transactions: sortedTransactions,
     });
   } catch (error) {
     console.error("Error fetching transactions:", error);

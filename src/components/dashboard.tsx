@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { TellerConnect } from "./teller-connect";
+import { TellerEnrollments } from "./teller-enrollments";
 import { TransactionsList } from "./transactions-list";
 import { Button } from "./ui/button";
 
@@ -48,6 +49,10 @@ export function Dashboard({ userEmail }: DashboardProps) {
 
       <div className="mb-8">
         <TellerConnect onSuccess={handleTellerSuccess} />
+      </div>
+
+      <div className="mb-8">
+        <TellerEnrollments />
       </div>
 
       <TransactionsList />

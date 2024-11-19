@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import { DateTime } from "luxon";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -16,8 +16,9 @@ import {
 interface Transaction {
   date: string;
   amount: number;
-  running_balance?: number;
+  running_balance: number;
   account_type: string;
+  account_id: string;
 }
 
 interface BalanceChartProps {
@@ -26,47 +27,62 @@ interface BalanceChartProps {
 
 export function BalanceChart({ transactions }: BalanceChartProps) {
   const chartData = useMemo(() => {
-    // Sort transactions by date
-    const sortedTransactions = [...transactions].sort(
-      (a, b) =>
-        DateTime.fromISO(a.date).toMillis() -
-        DateTime.fromISO(b.date).toMillis()
-    );
+    // First, get all unique dates in the month and sort them
+    const dates = [
+      ...Array.from(
+        new Set(
+          transactions.map((t) =>
+            DateTime.fromISO(t.date).toFormat("yyyy-MM-dd")
+          )
+        )
+      ),
+    ].sort();
 
-    // If we have running balance from Teller, use it directly
-    if (sortedTransactions[0]?.running_balance !== undefined) {
-      return sortedTransactions.map((transaction) => ({
-        date: transaction.date,
-        balance: transaction.running_balance,
-      }));
-    }
+    if (dates.length === 0) return [];
 
-    // Otherwise calculate daily balances from Plaid data
-    const dailyBalances = sortedTransactions.reduce<Record<string, number>>(
-      (acc, transaction) => {
-        const date = DateTime.fromISO(transaction.date).toFormat("yyyy-MM-dd");
-        if (!acc[date]) {
-          // Get the previous day's balance or 0 if it's the first day
-          const prevDate = Object.keys(acc).sort().pop();
-          acc[date] = prevDate ? acc[prevDate] : 0;
-        }
-        // Subtract amount because Plaid uses positive for expenses
-        acc[date] -= transaction.amount;
-        return acc;
-      },
-      {}
-    );
+    // Track the latest balance for each account
+    const accountLatestBalance: Record<string, number> = {};
 
-    return Object.entries(dailyBalances)
-      .map(([date, balance]) => ({
-        date,
-        balance,
-      }))
-      .sort(
-        (a, b) =>
-          DateTime.fromISO(a.date).toMillis() -
-          DateTime.fromISO(b.date).toMillis()
+    // Build daily balances, carrying over previous balances when no transactions
+    return dates.map((date) => {
+      // Get all transactions for this date
+      const dayTransactions = transactions.filter(
+        (t) => DateTime.fromISO(t.date).toFormat("yyyy-MM-dd") === date
       );
+
+      // Group transactions by account and get the last one for each account
+      const accountGroups = dayTransactions.reduce<
+        Record<string, Transaction[]>
+      >((acc, tx) => {
+        if (!acc[tx.account_id]) {
+          acc[tx.account_id] = [];
+        }
+        acc[tx.account_id].push(tx);
+        return acc;
+      }, {});
+
+      // Update account balances with the last transaction of the day for each account
+      Object.entries(accountGroups).forEach(([accountId, txs]) => {
+        // Sort by date descending and take the first (latest) transaction
+        const latestTx = txs.sort(
+          (a, b) =>
+            DateTime.fromISO(b.date).toMillis() -
+            DateTime.fromISO(a.date).toMillis()
+        )[0];
+        accountLatestBalance[accountId] = latestTx.running_balance;
+      });
+
+      // Calculate net worth by summing all account balances
+      const netWorth = Object.values(accountLatestBalance).reduce(
+        (sum, balance) => sum + balance,
+        0
+      );
+
+      return {
+        date,
+        netWorth,
+      };
+    });
   }, [transactions]);
 
   const formatCurrency = (value: number) => {
@@ -81,7 +97,7 @@ export function BalanceChart({ transactions }: BalanceChartProps) {
   return (
     <div className="w-full h-[300px] mt-4">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart
+        <AreaChart
           data={chartData}
           margin={{
             top: 10,
@@ -103,14 +119,15 @@ export function BalanceChart({ transactions }: BalanceChartProps) {
             }
           />
           <Legend />
-          <Line
+          <Area
             type="monotone"
-            dataKey="balance"
-            name="Balance"
+            dataKey="netWorth"
+            name="Net Worth"
+            fill="#3b82f6"
             stroke="#3b82f6"
-            dot={false}
+            fillOpacity={0.6}
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
